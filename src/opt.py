@@ -144,3 +144,21 @@ def solve_model(model,
     solver = pyo.SolverFactory(optimizer)
     solver.options['MIPGap'] = mipgap
     results = solver.solve(model, tee = tee)
+    term_cond = results.solver.termination_condition
+    term = {}
+    if term_cond != pyo.TerminationCondition.optimal:
+          term['Temination Condition'] = format(term_cond)
+          print(term)
+          execution_time = time.time() - timea
+          ext_time = {}
+          ext_time['Execution time'] = execution_time
+          print(ext_time)
+          raise RuntimeError("Optimization failed.")
+    
+    else: 
+          term['Temination Condition'] = format(term_cond)
+          execution_time = time.time() - timea
+          ext_time = {}
+          ext_time['Execution time'] = execution_time  
+    
+    return results, termintation
