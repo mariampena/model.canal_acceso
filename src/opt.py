@@ -135,3 +135,12 @@ def create_model(Buques,
     #model.supop2 = Constraint(model.Nodos, model.Nodos,model.Buques,model.Buques, rule=superpopuestos2)
     
     return model
+
+
+def solve_model(model,
+                optimizer='gurobi',
+                mipgap=0.02,
+                tee=True):
+    solver = pyo.SolverFactory(optimizer)
+    solver.options['MIPGap'] = mipgap
+    results = solver.solve(model, tee = tee)
