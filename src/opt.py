@@ -141,7 +141,7 @@ def solve_model(model,
                 optimizer='gurobi',
                 mipgap=0.02,
                 tee=True):
-    solver = pyo.SolverFactory(optimizer)
+    solver = SolverFactory(optimizer)
     solver.options['MIPGap'] = mipgap
     results = solver.solve(model, tee = tee)
     term_cond = results.solver.termination_condition

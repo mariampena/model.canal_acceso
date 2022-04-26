@@ -4,6 +4,7 @@ Created on Tue Apr 26 17:17:52 2022
 
 @author: pmayaduque
 """
+from opt import create_model, solve_model
 
 Buques={1,2,3,4,5}
 Nodos={1, 2, 3, 4, 5, 6, 7}
@@ -71,3 +72,21 @@ tiempoliberacion={1:10,
 
 
 M=1000 #Valor muy grande que despues calcularemos bien con base en los datos del problema
+
+model=create_model(Buques, 
+                 Nodos, 
+                 Puertos, 
+                 Arcos,
+                 Rutas,
+                 t_viaje,
+                 puerto,
+                 tiempo_programado,
+                 tiempo_seguridad,
+                 tiempodescarga,
+                 tiempoliberacion,
+                 M)
+
+results=solve_model(model,
+                optimizer='gurobi',
+                mipgap=0.02,
+                tee=True)
