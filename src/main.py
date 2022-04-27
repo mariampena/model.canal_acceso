@@ -6,6 +6,11 @@ Created on Tue Apr 26 17:17:52 2022
 """
 import opt as opt
 from utilities import read_data
+import pandas as pd
+import plotly.express as px
+import plotly.io as pio
+from plotly.offline import plot
+pio.renderers.default='browser'
 
 # data paths
 # data_filepath = r"https://raw.githubusercontent.com/mariampena/model_canal_acceso/main/data/data.json"
@@ -49,9 +54,8 @@ results, termination = opt.solve_model(model,
 #print termination condition
 print(termination)
 
-x_values = opt.get_results(model)
-#print results
-for key, value in x_values.items():
-  if value != None and value > 0:
-    print(key, value)
-    
+if termination['Temination Condition'] == 'optimal': 
+   model_results = opt.Results(model) 
+   figure = model_results.create_graph(model)
+   plot(figure)
+   
