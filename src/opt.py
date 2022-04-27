@@ -7,7 +7,7 @@ Created on Tue Apr 26 17:17:59 2022
 
 from pyomo.environ import *
 from pyomo.opt import *
-from pyomo.core.base import initializer
+
 # Crear el modelo - abstracto/concreto
 
 def create_model(Buques, 
