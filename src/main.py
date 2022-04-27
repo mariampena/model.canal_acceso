@@ -4,9 +4,8 @@ Created on Tue Apr 26 17:17:52 2022
 
 @author: pmayaduque
 """
-from opt import create_model, solve_model
+import opt as opt
 from utilities import read_data
-import ast
 
 # data paths
 # data_filepath = r"https://raw.githubusercontent.com/mariampena/model_canal_acceso/main/data/data.json"
@@ -29,7 +28,7 @@ tiempoliberacion =  data["tiempoliberacion"]
 
 M=1000 #Valor muy grande que despues calcularemos bien con base en los datos del problema
 
-model=create_model(Buques, 
+model=opt.create_model(Buques, 
                  Nodos, 
                  Puertos, 
                  Arcos,
@@ -42,9 +41,16 @@ model=create_model(Buques,
                  tiempoliberacion,
                  M)
 
-results, termination =solve_model(model,
+results, termination = opt.solve_model(model,
                 optimizer='gurobi',
                 mipgap=0.02,
                 tee=False)
 
+#print termination condition
 print(termination)
+
+x_values = opt.get_results(model)
+#print results
+for key, value in x_values.items():
+  if value != None and value > 0:
+    print(key, value)

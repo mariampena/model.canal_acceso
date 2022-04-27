@@ -159,3 +159,7 @@ def solve_model(model,
           execution_time = time.time() - timea
           term['Execution time'] = execution_time    
     return results, term
+
+def get_results(model):
+    x_values = model.x.get_values()
+    return x_values
