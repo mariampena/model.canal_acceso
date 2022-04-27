@@ -86,7 +86,9 @@ model=create_model(Buques,
                  tiempoliberacion,
                  M)
 
-results=solve_model(model,
+results, termination =solve_model(model,
                 optimizer='gurobi',
                 mipgap=0.02,
-                tee=True)
+                tee=False)
+
+print(termination)

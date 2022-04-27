@@ -7,6 +7,7 @@ Created on Tue Apr 26 17:17:59 2022
 
 from pyomo.environ import *
 from pyomo.opt import *
+import time
 
 # Crear el modelo - abstracto/concreto
 
@@ -92,7 +93,7 @@ def create_model(Buques,
       pos = pos_puerto(k, model.puerto[k])
       return model.x[model.Rutas[k][pos], model.Rutas[k][pos+1], k] >= model.x[model.Rutas[k][pos-1], model.Rutas[k][pos], k] + model.t_viaje[(model.Rutas[k][pos-1], model.Rutas[k][pos])] + model.t_desc[k]
     model.continuidad_p = Constraint(model.Buques, rule=continuidad_p)
-    model.continuidad_p.pprint() 
+
     
     # Restricción no superposición del flujo 
     def superposicion(model,i,j,k,r):
@@ -143,22 +144,18 @@ def solve_model(model,
                 tee=True):
     solver = SolverFactory(optimizer)
     solver.options['MIPGap'] = mipgap
+    timea = time.time()
     results = solver.solve(model, tee = tee)
     term_cond = results.solver.termination_condition
     term = {}
-    if term_cond != pyo.TerminationCondition.optimal:
+    if term_cond != TerminationCondition.optimal:
           term['Temination Condition'] = format(term_cond)
-          print(term)
           execution_time = time.time() - timea
-          ext_time = {}
-          ext_time['Execution time'] = execution_time
-          print(ext_time)
+          term['Execution time'] = execution_time
           raise RuntimeError("Optimization failed.")
-    
+
     else: 
           term['Temination Condition'] = format(term_cond)
           execution_time = time.time() - timea
-          ext_time = {}
-          ext_time['Execution time'] = execution_time  
-    
-    return results, termintation
+          term['Execution time'] = execution_time    
+    return results, term
