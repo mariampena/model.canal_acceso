@@ -54,3 +54,4 @@ x_values = opt.get_results(model)
 for key, value in x_values.items():
   if value != None and value > 0:
     print(key, value)
+    

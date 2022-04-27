@@ -24,12 +24,13 @@ def create_model(Buques,
                  tiempoliberacion,
                  M):
     
+    # Crear el modelo - abstracto/concreto
     model = ConcreteModel(name="AsignacionPrioridad")
     
     # Declaración de conjuntos
     model.Buques = Set(ordered = False, initialize=Buques)                          #Conjunto de Buques
     model.Nodos = Set(ordered = False, initialize=Nodos)                            #Conjunto de Nodos
-    model.Puertos = Set(ordered = False, initialize=Puertos)                        #Conjunto de Puerts
+    model.Puertos = Set(ordered = False, initialize=Puertos)                        #Conjunto de Puertos
     model.Arcos = Set(ordered = False, initialize=Arcos)                            #Conjunto de Arcos
     
     # Declaración parámetros
@@ -52,7 +53,7 @@ def create_model(Buques,
     
     # Función objetivo
     def obj_rule(model):
-        return sum(model.z[a[0], a[1], k] for a in model.Arcos for k in model.Buques)
+        return sum(model.z[a[0], a[1], k] for a in model.Arcos for k in model.Buques )
     model.objetivo = Objective(sense=minimize, rule=obj_rule)
     
     # Función que determina si un nodo j es el puerto del buque k
@@ -65,39 +66,49 @@ def create_model(Buques,
     # Restricción de linealización
     def linealizacion(model,k,i,j):
       return model.z[i,j,k] >= funPuerto(k,j)*(model.x[i,j,k] - model.t_prog[k])
-      model.z[a[0], a[1], k] >= (model.x[a[0], a[1], k] - model.t_prog[k])#*funPuerto(k, a[1])
     model.linealizacion = Constraint(model.Buques, model.Arcos, rule=linealizacion)
-    #model.linealizacion.pprint()
     
     # Restricción de liberación
     def liberacion(model,k):
         return model.x[model.Rutas[k][0], model.Rutas[k][1], k] >= model.t_lib[k]
     model.libe = Constraint(model.Buques,rule=liberacion)
-    #model.libe.pprint()
     
-    # Restricción de continuidad de la ruta del buque k
-    len_max = max([len(x) for x in Rutas.values()]) # obtiene la longitud máxima de las rutas
-    pos_ruta = set(range(len_max)) # Crea conjunto de las posciones de la ruta
-    def continuidad(model,k,pos):
-      if pos<len(model.Rutas[k])-2:    
-        return model.x[model.Rutas[k][pos+1], model.Rutas[k][pos+2], k] >= model.x[model.Rutas[k][pos], model.Rutas[k][pos+1], k] + model.t_viaje[(model.Rutas[k][pos], model.Rutas[k][pos+1])]
-      else:
-        return Constraint.Skip
-    #model.continuidad = Constraint(model.Buques, pos_ruta, rule=continuidad)
-    
-    # caso especial de cuando se arriba al puerto (hay que sumarle el tiempo de descarga)
     #función que retorna la posición del puerto en la ruta del buque k  
     def pos_puerto(buque, id_puerto):
       return Rutas[buque].index(id_puerto)
+      
+    # Restricción de continuidad de la ruta del buque k
+    len_max = max([len(x) for x in Rutas.values()]) # obtiene la longitud máxima de las rutas
+    pos_ruta = set(range(len_max))
+    def continuidad(model,k,pos):
+      if pos==pos_puerto(k, model.puerto[k]):
+        return Constraint.Skip
+      elif pos==0:
+        return model.x[model.Rutas[k][pos], model.Rutas[k][pos+1], k] >= model.t_lib[k] # Esta es redundante con liberación
+      elif pos<len(model.Rutas[k])-1:    
+        return model.x[model.Rutas[k][pos], model.Rutas[k][pos+1], k] == model.x[model.Rutas[k][pos-1], model.Rutas[k][pos], k] + model.t_viaje[(model.Rutas[k][pos-1], model.Rutas[k][pos])]
+      else:
+        return Constraint.Skip#model.continuidad = Constraint(model.Buques, pos_ruta, rule=continuidad)
+    model.continuidad = Constraint(model.Buques, pos_ruta, rule=continuidad)
+    
+    
+    # caso especial de cuando se arriba al puerto (hay que sumarle el tiempo de descarga)
     def continuidad_p(model,k): 
       pos = pos_puerto(k, model.puerto[k])
-      return model.x[model.Rutas[k][pos], model.Rutas[k][pos+1], k] >= model.x[model.Rutas[k][pos-1], model.Rutas[k][pos], k] + model.t_viaje[(model.Rutas[k][pos-1], model.Rutas[k][pos])] + model.t_desc[k]
+      return model.x[model.Rutas[k][pos], model.Rutas[k][pos+1], k] == model.x[model.Rutas[k][pos-1], model.Rutas[k][pos], k] + model.t_viaje[(model.Rutas[k][pos-1], model.Rutas[k][pos])] + model.t_desc[k]
     model.continuidad_p = Constraint(model.Buques, rule=continuidad_p)
-
+      
+    # Función que determina si un arco esta en la ruta del buque
+    def arcoEnRuta(buque, arco):
+      arcos_buque = [(Rutas[buque][i],Rutas[buque][i+1]) for i in range(len(Rutas[buque])-1)]
+      if arco in arcos_buque:
+        return True
+      else: 
+        return False
     
     # Restricción no superposición del flujo 
     def superposicion(model,i,j,k,r):
-      if (i,j) in model.Arcos and k!=r:
+      if (i,j) in model.Arcos and k!=r and arcoEnRuta(k, (i,j)) and arcoEnRuta(r, (i,j)):
         return model.x[i,j,k]-model.x[i,j,r]>=model.t_seg[i,j]-M*model.wkr[i,j,k,r]
       else:
         return Constraint.Skip
@@ -105,35 +116,52 @@ def create_model(Buques,
     
     # Restricción no superposición del flujo2
     def superposicion2(model,i,j,k,r):
-      if (i,j) in model.Arcos and k!=r:
+      if (i,j) in model.Arcos and k!=r and arcoEnRuta(k, (i,j)) and arcoEnRuta(r, (i,j)):
         return model.x[i,j,r]-model.x[i,j,k]>=model.t_seg[i,j]-M*(1-model.wkr[i,j,k,r])
       else:
         return Constraint.Skip
     model.sup2 = Constraint(model.Nodos, model.Nodos,model.Buques,model.Buques, rule=superposicion2)
     
-    # Restriccion no simultaneidad
-    def simultaneidad(model,i,j,k,r):
-      return model.wkr[i,j,k,r]+model.wrk[i,j,r,k]<=1
-    model.simultaneidad = Constraint(model.Nodos, model.Nodos,model.Buques,model.Buques, rule=simultaneidad)
+    
+    #Restriccion superposicion en muelles
+    def supmuelle(model,i,j,k,r):
+      if j in model.Puertos and (i,j) in model.Arcos and k!=r and arcoEnRuta(k, (i,j)) and arcoEnRuta(r, (i,j)):
+        #return model.x[i,j,r]+model.t_viaje[i,j]+model.t_desc[r]>=model.x[i,j,k]-M*(1-model.wkr[i,j,k,r])
+        return model.x[i,j,r]+model.t_viaje[i,j]>=model.x[j,i,k]-M*(1-model.wkr[i,j,k,r])
+      else:
+        return Constraint.Skip
+    model.supmuelle = Constraint(model.Nodos, model.Nodos,model.Buques,model.Buques, rule=supmuelle)
+    
+    
+    #Restriccion superposicion en muelles
+    def supmuelle2(model,i,j,k,r):
+      if j in model.Puertos and (i,j) in model.Arcos and k!=r and arcoEnRuta(k, (i,j)) and arcoEnRuta(r, (i,j)):
+        return model.x[i,j,k]+model.t_viaje[i,j]+model.t_desc[k]>=model.x[i,j,r]-M*(model.wkr[i,j,k,r])
+        #return model.x[i,j,k]+model.t_viaje[i,j]>=model.x[j,i,r]-M*(model.wkr[i,j,k,r])
+      else:
+        return Constraint.Skip
+    model.supmuelle2 = Constraint(model.Nodos, model.Nodos,model.Buques,model.Buques, rule=supmuelle2)
     
     
     #Restriccion superposicion en sentidos opuestos
     def superpopuestos(model,i,j,k,r):
-     if (i,j) in model.Arcos and k!=r:
-        return model.x[i,j,k]-model.x[j,i,r]>=model.t_viaje[j,i]-M*model.ykr[i,j,k,r]
+     #if (i,j) in model.Arcos and k!=r:
+     if (i,j) in model.Arcos and i > j and k!=r and arcoEnRuta(k, (i,j)) and arcoEnRuta(r, (j,i)):
+        return model.x[i,j,k]-model.x[j,i,r]>=model.t_viaje[j,i]-M*(1 - model.ykr[i,j,k,r])
      else:
         return Constraint.Skip
-    #model.supop = Constraint(model.Nodos, model.Nodos,model.Buques,model.Buques, rule=superpopuestos)
-    
-    
+    model.supop = Constraint(model.Nodos, model.Nodos,model.Buques,model.Buques, rule=superpopuestos)
     
     #Segunda restriccion superposicion en sentidos opuestos
     def superpopuestos2(model,i,j,k,r):
-     if (i,j) in model.Arcos and k!=r:
-        return model.x[j,i,r]-model.x[i,j,k]>=model.t_viaje[i,j]-M*model.ykr[i,j,r,k]
+     #if (i,j) in model.Arcos and k!=r:
+     if (i,j) in model.Arcos and i > j and k!=r and arcoEnRuta(k, (i,j)) and arcoEnRuta(r, (j,i)):
+        #return model.x[j,i,r]-model.x[i,j,k]>=model.t_viaje[i,j]-M*model.ykr[i,j,r,k]
+        return model.x[j,i,r]-model.x[i,j,k]>=model.t_viaje[i,j]-M*model.ykr[i,j,k,r]
      else:
         return Constraint.Skip
-    #model.supop2 = Constraint(model.Nodos, model.Nodos,model.Buques,model.Buques, rule=superpopuestos2)
+    model.supop2 = Constraint(model.Nodos, model.Nodos,model.Buques,model.Buques, rule=superpopuestos2)
+   
     
     return model
 
