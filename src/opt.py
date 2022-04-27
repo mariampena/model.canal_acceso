@@ -7,7 +7,12 @@ Created on Tue Apr 26 17:17:59 2022
 
 from pyomo.environ import *
 from pyomo.opt import *
+import pandas as pd
 import time
+import plotly.express as px
+import plotly.io as pio
+from plotly.offline import plot
+pio.renderers.default='browser'
 
 # Crear el modelo - abstracto/concreto
 
@@ -188,6 +193,55 @@ def solve_model(model,
           term['Execution time'] = execution_time    
     return results, term
 
+
+class Results():
+    def __init__(self, model):
+        
+        # general descriptives of tehe solution
+        self.descriptive = {}
+    
+    def create_graph(self, model):
+        x_values = model.x.get_values()
+            
+        # get values used
+        x_used= {(key[0], key[1], key[2]) : int(value)  for key, value in x_values.items() if  value != None }
+        # get maximum time (makespan)
+        max_value = max(x_used.values())+model.t_viaje[(1,2)]+5
+        # get solution for each ship
+        sol_dict= dict()
+        for i in model.Buques:
+            arcs_dict = {(key[0], key[1]) : value  for key, value in x_used.items() if (key[2]==i and value != None) }
+            sol_dict[i] = sorted(arcs_dict.items(), key=lambda x: x[1])
+
+        # get space-temporal dictionary
+        space_time = {k : [0]*max_value for k in model.Buques}
+        for key, value in sol_dict.items():
+            for i in range(len(value) -1):
+                for j in range(value[i][1], value[i+1][1]):
+                    if j <= value[i][1] + model.t_viaje[value[i][0]]:
+                        space_time[key][j]= value[i][0][0] + (j - value[i][1])*(value[i][0][1]-value[i][0][0])/model.t_viaje[value[i][0]]
+                    else:
+                        space_time[key][j]= value[i][0][1]
+            for j in range(value[len(value) -1][1], value[len(value) -1][1] + model.t_viaje[value[len(value) -1][0]] +1):
+                space_time[key][j]= value[len(value) -1][0][0] - (j - value[len(value) -1][1]) *(1/model.t_viaje[value[len(value) -1][0]])   
+
+
+        df_space_time = pd.DataFrame(space_time, columns=[*space_time.keys()])
+        df_space_time.reset_index(inplace = True)
+        columns_names={i: ('ship'+ str(i)) for i in [*space_time.keys()]}
+        columns_names['index'] ='time'
+        df_space_time.rename(columns=columns_names, inplace = True)
+
+        # graficamos usando el tipo de grafico de linea
+        ship_names=[('ship'+ str(i)) for i in model.Buques]
+        fig = px.line(df_space_time, x='time', y=ship_names, 
+                      title='Spatial-temporal graph for the ship scheduling problem ',
+                      labels={'value': 'node',
+                              'variable': ' '})
+        
+        return fig
+        
+        
 def get_results(model):
     x_values = model.x.get_values()
     return x_values
