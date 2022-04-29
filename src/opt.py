@@ -295,6 +295,7 @@ class Results():
         # graficamos usando el tipo de grafico de linea
         import plotly.graph_objects as go
         pallete = px.colors.qualitative.Dark24
+        n_colors = len(pallete)
         fig = go.Figure()
         trace = 0
         for col in ['ship'+ str(i) for i in [*space_time.keys()]]:            
@@ -314,6 +315,7 @@ class Results():
                 )
             )  '''          
             trace += 1
+            trace = trace%n_colors
         return fig
         
         
