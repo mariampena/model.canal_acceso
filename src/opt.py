@@ -7,6 +7,7 @@ Created on Tue Apr 26 17:17:59 2022
 
 from pyomo.environ import *
 from pyomo.opt import *
+from pyomo.core import value
 import pandas as pd
 import time
 import plotly.express as px
@@ -197,8 +198,23 @@ def solve_model(model,
 class Results():
     def __init__(self, model):
         
-        # general descriptives of tehe solution
+        # general descriptives of the solution
         self.descriptive = {}
+        self.descriptive['OF'] = model.objetivo.expr()
+        x_values = model.x.get_values()
+        # save only the arcs that are being used
+        self.descriptive['x_values'] = {(key[0], key[1], key[2]) : int(value)  for key, value in x_values.items() if  value != None }
+        # port arrival and lateness for each boat 
+        lateness = dict()
+        port_arrival = dict()
+        for k in model.Buques:
+            pos_port = model.Rutas[k].index(model.puerto[k])
+            arrival = value(model.x[model.Rutas[k][pos_port-1],model.puerto[k],k])
+            port_arrival[k] = arrival
+            late = arrival - model.t_prog[k]
+            lateness[k] = late*(late>0) # gets value 0 if it is negative
+        self.descriptive['port_arrival'] = port_arrival
+        self.descriptive['lateness'] = lateness
     
     def create_graph(self, model):
         x_values = model.x.get_values()
