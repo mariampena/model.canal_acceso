@@ -207,16 +207,19 @@ class Results():
         # port arrival and lateness for each boat 
         lateness = dict()
         port_arrival = dict()
+        programmed = dict()
         for k in model.Buques:
             pos_port = model.Rutas[k].index(model.puerto[k])
             arrival = value(model.x[model.Rutas[k][pos_port-1],model.puerto[k],k])
-            port_arrival[k] = arrival
+            port_arrival['ship'+ str(k)] = arrival
+            programmed['ship'+ str(k)] = model.t_prog[k]
             late = arrival - model.t_prog[k]
-            lateness[k] = late*(late>0) # gets value 0 if it is negative
+            lateness['ship'+ str(k)] = late*(late>0) # gets value 0 if it is negative
+        self.descriptive['programmed'] = programmed
         self.descriptive['port_arrival'] = port_arrival
         self.descriptive['lateness'] = lateness
     
-    def create_graph(self, model):
+    def create_graph2(self, model):
         x_values = model.x.get_values()
             
         # get values used
@@ -255,6 +258,62 @@ class Results():
                       labels={'value': 'node',
                               'variable': ' '})
         
+        return fig
+    
+    def create_graph(self, model):
+        x_values = model.x.get_values()
+            
+        # get values used
+        x_used= {(key[0], key[1], key[2]) : int(value)  for key, value in x_values.items() if  value != None }
+        # get maximum time (makespan)
+        max_value = max(x_used.values())+model.t_viaje[(1,2)]+5
+        # get solution for each ship
+        sol_dict= dict()
+        for i in model.Buques:
+            arcs_dict = {(key[0], key[1]) : value  for key, value in x_used.items() if (key[2]==i and value != None) }
+            sol_dict[i] = sorted(arcs_dict.items(), key=lambda x: x[1])
+
+        # get space-temporal dictionary
+        space_time = {k : [0]*max_value for k in model.Buques}
+        for key, value in sol_dict.items():
+            for i in range(len(value) -1):
+                for j in range(value[i][1], value[i+1][1]):
+                    if j <= value[i][1] + model.t_viaje[value[i][0]]:
+                        space_time[key][j]= value[i][0][0] + (j - value[i][1])*(value[i][0][1]-value[i][0][0])/model.t_viaje[value[i][0]]
+                    else:
+                        space_time[key][j]= value[i][0][1]
+            for j in range(value[len(value) -1][1], value[len(value) -1][1] + model.t_viaje[value[len(value) -1][0]] +1):
+                space_time[key][j]= value[len(value) -1][0][0] - (j - value[len(value) -1][1]) *(1/model.t_viaje[value[len(value) -1][0]])   
+
+
+        df_space_time = pd.DataFrame(space_time, columns=[*space_time.keys()])
+        df_space_time.reset_index(inplace = True)
+        columns_names={i: ('ship'+ str(i)) for i in [*space_time.keys()]}
+        columns_names['index'] ='time'
+        df_space_time.rename(columns=columns_names, inplace = True)
+
+        # graficamos usando el tipo de grafico de linea
+        import plotly.graph_objects as go
+        pallete = px.colors.qualitative.Dark24
+        fig = go.Figure()
+        trace = 0
+        for col in ['ship'+ str(i) for i in [*space_time.keys()]]:            
+            fig.add_trace(go.Scatter(x=df_space_time['time'], y=df_space_time[col],
+                                     name = col,
+                                     line = dict(color=pallete[trace])))
+            fig.add_trace(go.Scatter(x=[self.descriptive['programmed'][col], self.descriptive['programmed'][col]], y=[-1, len(model.Nodos)+1],
+                                     name = "sched_"+col,
+                                     line = dict(dash='dot', color=pallete[trace])))
+            '''
+            fig.add_shape(type="line",
+                x0=self.descriptive['programmed'][col], y0=-1, x1=self.descriptive['programmed'][col], y1=len(model.Nodos)+1,
+                name = "sched_"+col,
+                line=dict(
+                    color=pallete[trace],
+                    dash="dot",
+                )
+            )  '''          
+            trace += 1
         return fig
         
         
