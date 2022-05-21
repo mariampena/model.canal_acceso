@@ -30,7 +30,9 @@ tiempo_programado = data["tiempo_programado"]
 tiempo_seguridad = data["tiempo_seguridad"]
 tiempodescarga =  data["tiempodescarga"]
 tiempoliberacion =  data["tiempoliberacion"] 
-
+ventana_inicio = data['ventana_inicio']
+ventana_fin = data['ventana_fin']
+a = 24
 M=1000 #Valor muy grande que despues calcularemos bien con base en los datos del problema
 
 model=opt.create_model(Buques, 
@@ -44,6 +46,9 @@ model=opt.create_model(Buques,
                  tiempo_seguridad,
                  tiempodescarga,
                  tiempoliberacion,
+                 ventana_inicio,
+                 ventana_fin,
+                 a,
                  M)
 
 results, termination = opt.solve_model(model,

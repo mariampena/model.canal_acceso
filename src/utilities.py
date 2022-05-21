@@ -30,5 +30,7 @@ def read_data(data_path):
     data_read['tiempo_seguridad'] = {tuple(ast.literal_eval(k)): v for k, v in data["tiempo_seguridad"].items()}
     data_read['tiempodescarga'] = {int(k): v for k, v in data["tiempodescarga"].items()}
     data_read['tiempoliberacion'] = {int(k): v for k, v in data["tiempoliberacion"].items()} 
-        
+    data_read['ventana_inicio'] = {tuple(ast.literal_eval(k)): v for k, v in data["ventana_inicio"].items()}
+    data_read['ventana_fin'] = {tuple(ast.literal_eval(k)): v for k, v in data["ventana_fin"].items()}
+    
     return data_read

@@ -28,6 +28,9 @@ def create_model(Buques,
                  tiempo_seguridad,
                  tiempodescarga,
                  tiempoliberacion,
+                 ventana_inicio,
+                 ventana_fin,
+                 a, # número de unidades de tiempo en un día
                  M):
     
     # Crear el modelo - abstracto/concreto
@@ -47,10 +50,20 @@ def create_model(Buques,
     model.t_desc = Param(model.Buques, initialize=tiempodescarga)                   #Tiempo de descarga del buque
     model.t_lib = Param(model.Buques, initialize=tiempoliberacion)                  #Tiempo de liberación de los buques (cuando está disponible para transitar)
     model.puerto = Param(model.Buques, initialize=puerto) 
+    # TODO mejorar las llaves del diccionario
+    def v_initialization(model, i, j, k):
+        return ventana_inicio[(i, (j, k))]
+    model.v_inicio = Param(model.Buques, model.Arcos, initialize=v_initialization) 
+    def v_initialization(model, i, j, k):
+        return ventana_fin[(i, (j, k))]
+    model.v_fin = Param(model.Buques, model.Arcos, initialize=v_initialization) 
+    model.a = Param(initialize = a)
     
     # Declarión variables de decisión}
+    # TODO: Para mejorar la eficiencia, crear solo las variables de los arcos que existan
     model.x = Var(model.Nodos, model.Nodos, model.Buques, domain=NonNegativeReals)  # tiempo de inicio del transito en el arco (i,j)
-                                                                                    # TODO: Para mejorar la eficiencia, crear solo las variables de los arcos que existan
+    model.y = Var(model.Nodos, model.Nodos, model.Buques, domain=NonNegativeReals, bounds=(0,model.a-0.01)) # Modulo de la variable x sobre el número de periodos a
+    model.k = Var(model.Nodos, model.Nodos, model.Buques, domain=Integers)
     model.wkr = Var(model.Nodos, model.Nodos, model.Buques, model.Buques, domain=Binary)        # 1 si el buque k atravieza antes que el buque r el arco (i,j)
     model.wrk = Var(model.Nodos, model.Nodos, model.Buques, model.Buques, domain=Binary)        # 1 si el buque r atravieza antes que el buque k el arco (i,j)
     model.ykr = Var(model.Nodos, model.Nodos, model.Buques, model.Buques, domain=Binary)        # 1 si el buque k inicia el arco (i,j) antes que el buque r el arco (j,i)
@@ -101,7 +114,8 @@ def create_model(Buques,
     # caso especial de cuando se arriba al puerto (hay que sumarle el tiempo de descarga)
     def continuidad_p(model,k): 
       pos = pos_puerto(k, model.puerto[k])
-      return model.x[model.Rutas[k][pos], model.Rutas[k][pos+1], k] == model.x[model.Rutas[k][pos-1], model.Rutas[k][pos], k] + model.t_viaje[(model.Rutas[k][pos-1], model.Rutas[k][pos])] + model.t_desc[k]
+      # TODO: Esta restricción con = no permite que se quede esperando en puerto y hace infactible ventanas de tiempo
+      return model.x[model.Rutas[k][pos], model.Rutas[k][pos+1], k] >= model.x[model.Rutas[k][pos-1], model.Rutas[k][pos], k] + model.t_viaje[(model.Rutas[k][pos-1], model.Rutas[k][pos])] + model.t_desc[k]
     model.continuidad_p = Constraint(model.Buques, rule=continuidad_p)
       
     # Función que determina si un arco esta en la ruta del buque
@@ -169,6 +183,29 @@ def create_model(Buques,
     model.supop2 = Constraint(model.Nodos, model.Nodos,model.Buques,model.Buques, rule=superpopuestos2)
    
     
+    # Mareas, ventanas de tiempo
+    def ventanaInicio(model, k, i, j):
+        if (i,j) in model.Arcos and arcoEnRuta(k, (i,j)):
+            return model.y[i, j, k] >= model.v_inicio[k, i, j]
+        else:
+            return Constraint.Skip
+    model.v_inicio1 = Constraint(model.Buques, model.Arcos,  rule=ventanaInicio)
+    
+    def ventanaFin(model, k, i, j):
+        if (i,j) in model.Arcos and arcoEnRuta(k, (i,j)):
+            return model.y[i, j, k] <= model.v_fin[k, i, j]
+        else:
+            return Constraint.Skip
+    model.v_fin1 = Constraint(model.Buques, model.Arcos,  rule=ventanaFin)
+    
+    # modulo tiempo de inicio
+    def modulo(model, k, i, j):
+        if (i,j) in model.Arcos and arcoEnRuta(k, (i,j)):
+            return model.x[i,j,k] == a*model.k[i,j,k] + model.y[i,j,k]
+        else:
+            return Constraint.Skip        
+    model.modulo = Constraint(model.Buques, model.Arcos,  rule=modulo)    
+        
     return model
 
 
