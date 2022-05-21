@@ -114,7 +114,8 @@ def create_model(Buques,
     # caso especial de cuando se arriba al puerto (hay que sumarle el tiempo de descarga)
     def continuidad_p(model,k): 
       pos = pos_puerto(k, model.puerto[k])
-      return model.x[model.Rutas[k][pos], model.Rutas[k][pos+1], k] == model.x[model.Rutas[k][pos-1], model.Rutas[k][pos], k] + model.t_viaje[(model.Rutas[k][pos-1], model.Rutas[k][pos])] + model.t_desc[k]
+      # TODO: Esta restricción con = no permite que se quede esperando en puerto y hace infactible ventanas de tiempo
+      return model.x[model.Rutas[k][pos], model.Rutas[k][pos+1], k] >= model.x[model.Rutas[k][pos-1], model.Rutas[k][pos], k] + model.t_viaje[(model.Rutas[k][pos-1], model.Rutas[k][pos])] + model.t_desc[k]
     model.continuidad_p = Constraint(model.Buques, rule=continuidad_p)
       
     # Función que determina si un arco esta en la ruta del buque
@@ -195,7 +196,7 @@ def create_model(Buques,
             return model.y[i, j, k] <= model.v_fin[k, i, j]
         else:
             return Constraint.Skip
-    #model.v_fin1 = Constraint(model.Buques, model.Arcos,  rule=ventanaFin)
+    model.v_fin1 = Constraint(model.Buques, model.Arcos,  rule=ventanaFin)
     
     # modulo tiempo de inicio
     def modulo(model, k, i, j):
