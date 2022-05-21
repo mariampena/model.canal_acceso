@@ -195,7 +195,7 @@ def create_model(Buques,
             return model.y[i, j, k] <= model.v_fin[k, i, j]
         else:
             return Constraint.Skip
-    model.v_fin1 = Constraint(model.Buques, model.Arcos,  rule=ventanaFin)
+    #model.v_fin1 = Constraint(model.Buques, model.Arcos,  rule=ventanaFin)
     
     # modulo tiempo de inicio
     def modulo(model, k, i, j):
