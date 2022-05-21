@@ -61,7 +61,7 @@ def create_model(Buques,
     
     # Declarión variables de decisión}
     # TODO: Para mejorar la eficiencia, crear solo las variables de los arcos que existan
-    model.x = Var(model.Nodos, model.Nodos, model.Buques, domain=NonNegativeIntegers)  # tiempo de inicio del transito en el arco (i,j)
+    model.x = Var(model.Nodos, model.Nodos, model.Buques, domain=NonNegativeReals)  # tiempo de inicio del transito en el arco (i,j)
     model.y = Var(model.Nodos, model.Nodos, model.Buques, domain=NonNegativeReals, bounds=(0,model.a-0.01)) # Modulo de la variable x sobre el número de periodos a
     model.k = Var(model.Nodos, model.Nodos, model.Buques, domain=Integers)
     model.wkr = Var(model.Nodos, model.Nodos, model.Buques, model.Buques, domain=Binary)        # 1 si el buque k atravieza antes que el buque r el arco (i,j)
@@ -195,7 +195,7 @@ def create_model(Buques,
             return model.y[i, j, k] <= model.v_fin[k, i, j]
         else:
             return Constraint.Skip
-    #model.v_fin1 = Constraint(model.Buques, model.Arcos,  rule=ventanaFin)
+    model.v_fin1 = Constraint(model.Buques, model.Arcos,  rule=ventanaFin)
     
     # modulo tiempo de inicio
     def modulo(model, k, i, j):
